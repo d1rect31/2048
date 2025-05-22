@@ -22,23 +22,48 @@ public class GameController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.W))
         {
             slide("up");
+            Cell2048.ResetAllMergedFlags();
+            SpawnFill();
         }
         if (Input.GetKeyDown(KeyCode.A))
         {
             slide("left");
+            Cell2048.ResetAllMergedFlags();
+            SpawnFill();
         }
         if (Input.GetKeyDown(KeyCode.S))
         {
             slide("down");
+            Cell2048.ResetAllMergedFlags();
+            SpawnFill();
         }
         if (Input.GetKeyDown(KeyCode.D))
         {
             slide("right");
+            Cell2048.ResetAllMergedFlags();
+            SpawnFill();
         }
     }
     public void SpawnFill()
     {
+        // Проверка: все ли клетки заняты
+        bool allCellsFull = true;
+        foreach (var cell in cells)
+        {
+            if (cell.childCount == 0)
+            {
+                allCellsFull = false;
+                break;
+            }
+        }
+        if (allCellsFull)
+        {
+            Debug.Log("Все клетки заняты. Невозможно создать новый Fill.");
+            return;
+        }
+
         int randomIndex = UnityEngine.Random.Range(0, cells.Length);
+
         if (cells[randomIndex].childCount > 0)
         {
             Debug.Log(cells[randomIndex].name + " is full");

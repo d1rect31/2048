@@ -9,6 +9,7 @@ public class Cell2048 : MonoBehaviour
     public Cell2048 down;
     public Fill2048 fill;
     public bool mergedThisTurn = false;
+
     public void OnEnable()
     {
         GameController.slide += OnSlide;
@@ -17,7 +18,7 @@ public class Cell2048 : MonoBehaviour
     {
         GameController.slide -= OnSlide;
     }
-    
+
     private void OnSlide(string recievedDirection)
     {
         // Debug.Log(recievedDirection);
@@ -45,7 +46,24 @@ public class Cell2048 : MonoBehaviour
                 return;
             SlideRight(this);
         }
+
+        // —брос флагов после каждого хода
+        ResetAllMergedFlags();
     }
+
+    /// <summary>
+    /// —брасывает флаг mergedThisTurn у всех €чеек и их фишек на сцене.
+    /// </summary>
+    public static void ResetAllMergedFlags()
+    {
+        foreach (var cell in GameObject.FindObjectsOfType<Cell2048>())
+        {
+            cell.mergedThisTurn = false;
+            if (cell.fill != null)
+                cell.fill.mergedThisTurn = false;
+        }
+    }
+
     void SlideUp(Cell2048 currentCell)
     {
         if (currentCell.down == null)
@@ -69,6 +87,7 @@ public class Cell2048 : MonoBehaviour
         else if (currentCell.fill.value == nextCell.fill.value && !currentCell.mergedThisTurn && !nextCell.mergedThisTurn)
         {
             currentCell.fill.Double();
+            nextCell.fill.Remove();
             nextCell.fill = null;
             currentCell.mergedThisTurn = true;
         }
@@ -105,6 +124,7 @@ public class Cell2048 : MonoBehaviour
         else if (currentCell.fill.value == nextCell.fill.value && !currentCell.mergedThisTurn && !nextCell.mergedThisTurn)
         {
             currentCell.fill.Double();
+            nextCell.fill.Remove();
             nextCell.fill = null;
             currentCell.mergedThisTurn = true;
         }
@@ -142,6 +162,7 @@ public class Cell2048 : MonoBehaviour
         else if (currentCell.fill.value == nextCell.fill.value && !currentCell.mergedThisTurn && !nextCell.mergedThisTurn)
         {
             currentCell.fill.Double();
+            nextCell.fill.Remove();
             nextCell.fill = null;
             currentCell.mergedThisTurn = true;
         }
@@ -179,6 +200,7 @@ public class Cell2048 : MonoBehaviour
         else if (currentCell.fill.value == nextCell.fill.value && !currentCell.mergedThisTurn && !nextCell.mergedThisTurn)
         {
             currentCell.fill.Double();
+            nextCell.fill.Remove();
             nextCell.fill = null;
             currentCell.mergedThisTurn = true;
         }
