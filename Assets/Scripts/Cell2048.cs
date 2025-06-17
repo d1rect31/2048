@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-
+using System.Linq;
 public class Cell2048 : MonoBehaviour
 {
     public Cell2048 left;
@@ -56,7 +56,9 @@ public class Cell2048 : MonoBehaviour
     /// </summary>
     public static void ResetAllMergedFlags()
     {
-        foreach (var cell in GameObject.FindObjectsOfType<Cell2048>())
+        foreach (var cell in GameObject.FindGameObjectsWithTag("Cell")
+                                       .Select(obj => obj.GetComponent<Cell2048>())
+                                       .Where(cell => cell != null))
         {
             cell.mergedThisTurn = false;
             if (cell.fill != null)

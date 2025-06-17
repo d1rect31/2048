@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 6512412215523523825}
   m_Layer: 5
   m_Name: Cell
-  m_TagString: Untagged
+  m_TagString: Cell
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -88,7 +88,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7952482b2fc5de4b9c3bce37e7b919b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  right: {fileID: 0}
   left: {fileID: 0}
+  right: {fileID: 0}
   up: {fileID: 0}
   down: {fileID: 0}
+  fill: {fileID: 0}
+  mergedThisTurn: 0

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class Fill2048 : MonoBehaviour
 {
     public int value;
-    private float speed = 5000f; 
+    //private float speed = 5000f; 
     [SerializeField] private GameObject valueDisplay; 
     private Image image;
 
@@ -44,7 +44,7 @@ public class Fill2048 : MonoBehaviour
     {
         if (transform.localPosition != Vector3.zero)
         {
-            transform.localPosition = Vector3.MoveTowards(transform.localPosition, Vector3.zero, Time.deltaTime * speed);
+            transform.localPosition = Vector3.zero;
         }
         else
         {
