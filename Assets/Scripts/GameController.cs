@@ -1,5 +1,7 @@
 using UnityEngine;
 using System;
+using UnityEngine.SocialPlatforms.Impl;
+using System.Collections.Generic;
 
 public enum GameState
 {
@@ -14,9 +16,38 @@ public class GameController : MonoBehaviour
     [SerializeField] GameObject fillPrefab;
     [SerializeField] Transform[] cells;
     public static Action<string> slide;
+
     [SerializeField] private GameObject gameOverScreenPrefab;
+    [SerializeField] private GameObject winScreenPrefab;
     private GameObject gameOverScreenInstance;
+    private GameObject winScreenInstance;
+    [SerializeField] private GameObject scoreText;
+
+    private Vector2 touchStartPos;
+    private Vector2 touchEndPos;
+    private bool swipeDetected;
+    private const float minSwipeDist = 50f;
+
     [SerializeField] private GameState currentState = GameState.Idle;
+    private readonly Queue<string> moveBuffer = new();
+    private const int MaxBufferSize = 2;
+    public bool won;
+    public static GameController Instance { get; private set; }
+    public int Score { get; private set; }
+    public int HighScore
+    {
+        get => PlayerPrefs.GetInt("HighScore", 0);
+        private set
+        {
+            PlayerPrefs.SetInt("HighScore", value);
+            PlayerPrefs.Save();
+        }
+    }
+    private void Awake()
+    {
+        Instance = this;
+    }
+
     private void Start()
     {
         SpawnFill();
@@ -31,22 +62,81 @@ public class GameController : MonoBehaviour
     {
         Fill2048.AllStopped -= OnAllFillsStopped;
     }
-
+    public void AddScore(int value)
+    {
+        Score += value;
+        scoreText.GetComponent<TMPro.TextMeshProUGUI>().text = "Score: " + Score;
+    }
     void Update()
     {
-        if (currentState != GameState.Idle)
-            return;
-        if (currentState == GameState.GameOver)
-            return;
+        
+        #if UNITY_ANDROID || UNITY_IOS
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
 
-        if (Input.GetKeyDown(KeyCode.W) && CanMove("up"))
-            StartMove("up");
-        if (Input.GetKeyDown(KeyCode.A) && CanMove("left"))
-            StartMove("left");
-        if (Input.GetKeyDown(KeyCode.S) && CanMove("down"))
-            StartMove("down");
-        if (Input.GetKeyDown(KeyCode.D) && CanMove("right"))
-            StartMove("right");
+            if (touch.phase == TouchPhase.Began)
+            {
+                touchStartPos = touch.position;
+                swipeDetected = false;
+            }
+            else if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Ended)
+            {
+                touchEndPos = touch.position;
+                Vector2 delta = touchEndPos - touchStartPos;
+
+                if (!swipeDetected && delta.magnitude > minSwipeDist)
+                {
+                    swipeDetected = true;
+                    string direction = null;
+                    if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+                    {
+                        if (delta.x > 0 && CanMove("right") && moveBuffer.Count < MaxBufferSize)
+                            direction = "right";
+                        else if (delta.x < 0 && CanMove("left") && moveBuffer.Count < MaxBufferSize)
+                            direction = "left";
+                    }
+                    else
+                    {
+                        if (delta.y > 0 && CanMove("up") && moveBuffer.Count < MaxBufferSize)
+                            direction = "up";
+                        else if (delta.y < 0 && CanMove("down") && moveBuffer.Count < MaxBufferSize)
+                            direction = "down";
+                    }
+                    if (direction != null)
+                        moveBuffer.Enqueue(direction);
+                }
+            }
+        }
+        #endif
+        
+        if (Input.GetKeyDown(KeyCode.W) && CanMove("up") && moveBuffer.Count < MaxBufferSize)
+            moveBuffer.Enqueue("up");
+        else if (Input.GetKeyDown(KeyCode.A) && CanMove("left") && moveBuffer.Count < MaxBufferSize)
+            moveBuffer.Enqueue("left");
+        else if (Input.GetKeyDown(KeyCode.S) && CanMove("down") && moveBuffer.Count < MaxBufferSize)
+            moveBuffer.Enqueue("down");
+        else if (Input.GetKeyDown(KeyCode.D) && CanMove("right") && moveBuffer.Count < MaxBufferSize)
+            moveBuffer.Enqueue("right");
+
+        // Выполняем ход только если Idle и есть ходы в буфере
+        if (currentState == GameState.Idle && moveBuffer.Count > 0)
+        {
+            // Пропускаем невозможные ходы
+            while (moveBuffer.Count > 0)
+            {
+                string dir = moveBuffer.Peek();
+                if (CanMove(dir))
+                {
+                    StartMove(moveBuffer.Dequeue());
+                    break;
+                }
+                else
+                {
+                    moveBuffer.Dequeue(); // Удаляем невозможный ход
+                }
+            }
+        }
     }
     private bool CanMove(string direction)
     {
@@ -76,24 +166,34 @@ public class GameController : MonoBehaviour
         currentState = GameState.Moving;
         slide(direction);
         Cell2048.ResetAllMergedFlags();
-        // Ожидание окончания движения Fill2048 через событие AllStopped
     }
 
     private void OnAllFillsStopped()
     {
-        Cell2048.RemoveDelayedFills();
-        currentState = GameState.SpawningBlocks;
         SpawnFill();
-        // Проверка на проигрыш
+
         if (!HasAvailableMoves())
         {
             currentState = GameState.GameOver;
             Debug.Log("Игра окончена. Нет доступных ходов.");
             ShowGameOverScreen();
         }
+        else if (Array.Exists(cells, cell =>
+            cell.childCount > 0 &&
+            cell.GetComponent<Cell2048>() != null &&
+            cell.GetComponent<Cell2048>().fill != null &&
+            cell.GetComponent<Cell2048>().fill.value == 2048) && won == false)
+        {
+            currentState = GameState.Win;
+            Debug.Log("Вы выиграли!");
+            won = true;
+            ShowWinScreen();
+        }
         else
         {
             currentState = GameState.Idle;
+            if (moveBuffer.Count > 0)
+                StartMove(moveBuffer.Dequeue());
         }
     }
     public void SpawnFill()
@@ -161,6 +261,65 @@ public class GameController : MonoBehaviour
         if (gameOverScreenPrefab != null && gameOverScreenInstance == null)
         {
             gameOverScreenInstance = Instantiate(gameOverScreenPrefab);
+            if (Score > HighScore)
+                HighScore = Score;
+
+            var highScoreText = gameOverScreenInstance.transform.Find("HighScoreText");
+            if (highScoreText != null)
+            {
+                var tmp = highScoreText.GetComponent<TMPro.TextMeshProUGUI>();
+                if (tmp != null)
+                    tmp.text = "Highscore: " + HighScore;
+            }
+            var restartButton = gameOverScreenInstance.transform.Find("RestartButton");
+            if (restartButton != null)
+            {
+                var btn = restartButton.GetComponent<UnityEngine.UI.Button>();
+                if (btn != null)
+                    btn.onClick.AddListener(RestartLevel);
+            }
         }
+    }
+    private void ShowWinScreen()
+    {
+        if (winScreenPrefab != null && winScreenInstance == null)
+        {
+            winScreenInstance = Instantiate(winScreenPrefab);
+
+            if (Score > HighScore)
+                HighScore = Score;
+
+            var highScoreText = winScreenInstance.transform.Find("HighScoreText");
+            if (highScoreText != null)
+            {
+                var tmp = highScoreText.GetComponent<TMPro.TextMeshProUGUI>();
+                if (tmp != null)
+                    tmp.text = "Highscore: " + HighScore;
+            }
+
+            // Кнопка Continue
+            var continueButton = winScreenInstance.transform.Find("ContinueButton");
+            if (continueButton != null)
+            {
+                var btn = continueButton.GetComponent<UnityEngine.UI.Button>();
+                if (btn != null)
+                    btn.onClick.AddListener(ContinueAfterWin);
+            }
+        }
+    }
+
+    private void ContinueAfterWin()
+    {
+        if (winScreenInstance != null)
+        {
+            Destroy(winScreenInstance);
+            winScreenInstance = null;
+        }
+        currentState = GameState.Idle;
+    }
+    public void RestartLevel()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
     }
 }

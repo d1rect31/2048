@@ -127,6 +127,7 @@ public class Fill2048 : MonoBehaviour
             valueDisplay.GetComponent<TextMeshProUGUI>().text = value.ToString();
         }
         FillValueUpdate(value);
+        GameController.Instance.AddScore(value);
         StartCoroutine(MergeAnimation());
     }
 
