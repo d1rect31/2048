@@ -9,7 +9,8 @@ public class Fill2048 : MonoBehaviour
     [SerializeField] private float speed = 5000f;
     [SerializeField] private GameObject valueDisplay;
     private Image image;
-
+    private bool isRainbow = false;
+    private float rainbowTime = 0f;
     public bool mergedThisTurn;
 
     private static int movingCount = 0;
@@ -60,14 +61,20 @@ public class Fill2048 : MonoBehaviour
             512 => new Color(237f / 255f, 200f / 255f, 80f / 255f),
             1024 => new Color(237f / 255f, 197f / 255f, 63f / 255f),
             2048 => new Color(237f / 255f, 194f / 255f, 45f / 255f),
-            _ => new Color(0.5f, 0.5f, 0.5f),
+            _ => EnableRainbowMode(),
         };
         if (valueDisplay != null)
         {
             valueDisplay.GetComponent<TextMeshProUGUI>().text = value.ToString();
         }
     }
-
+    private Color EnableRainbowMode()
+    {
+        isRainbow = true;
+        rainbowTime = 0f;
+        // Начальный цвет (красный)
+        return Color.HSVToRGB(0f, 1f, 1f);
+    }
     private void Update()
     {
         if (transform.localPosition != Vector3.zero)
@@ -113,6 +120,12 @@ public class Fill2048 : MonoBehaviour
                     AllStopped.Invoke();
                 }
             }
+        }
+        if (isRainbow)
+        {
+            rainbowTime += Time.deltaTime;
+            float hue = (rainbowTime * .1f) % 1f;
+            image.color = Color.HSVToRGB(hue, 1f, 1f);
         }
     }
     public void MarkForRemove()
