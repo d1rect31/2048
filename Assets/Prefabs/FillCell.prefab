@@ -90,6 +90,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   value: 0
+  speed: 5000
   valueDisplay: {fileID: 7514784874903564424}
   mergedThisTurn: 0
   pendingRemove: 0

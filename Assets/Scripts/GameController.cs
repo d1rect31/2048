@@ -6,7 +6,6 @@ using System.Collections.Generic;
 public enum GameState
 {
     Idle,
-    SpawningBlocks,
     Moving,
     GameOver,
     Win
@@ -29,8 +28,6 @@ public class GameController : MonoBehaviour
     private const float minSwipeDist = 50f;
 
     [SerializeField] private GameState currentState = GameState.Idle;
-    private readonly Queue<string> moveBuffer = new();
-    private const int MaxBufferSize = 2;
     public bool won;
     public static GameController Instance { get; private set; }
     public int Score { get; private set; }
@@ -65,12 +62,11 @@ public class GameController : MonoBehaviour
     public void AddScore(int value)
     {
         Score += value;
-        scoreText.GetComponent<TMPro.TextMeshProUGUI>().text = "Score: " + Score;
+        scoreText.GetComponent<TMPro.TextMeshProUGUI>().text = Convert.ToString(Score);
     }
     void Update()
     {
-        
-        #if UNITY_ANDROID || UNITY_IOS
+    #if UNITY_ANDROID || UNITY_IOS
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
@@ -80,63 +76,44 @@ public class GameController : MonoBehaviour
                 touchStartPos = touch.position;
                 swipeDetected = false;
             }
-            else if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Ended)
+            else if ((touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Ended) && !swipeDetected)
             {
                 touchEndPos = touch.position;
                 Vector2 delta = touchEndPos - touchStartPos;
 
-                if (!swipeDetected && delta.magnitude > minSwipeDist)
+                if (delta.magnitude > minSwipeDist && currentState == GameState.Idle)
                 {
                     swipeDetected = true;
-                    string direction = null;
                     if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
                     {
-                        if (delta.x > 0 && CanMove("right") && moveBuffer.Count < MaxBufferSize)
-                            direction = "right";
-                        else if (delta.x < 0 && CanMove("left") && moveBuffer.Count < MaxBufferSize)
-                            direction = "left";
+                        if (delta.x > 0 && CanMove("right"))
+                            StartMove("right");
+                        else if (delta.x < 0 && CanMove("left"))
+                            StartMove("left");
                     }
                     else
                     {
-                        if (delta.y > 0 && CanMove("up") && moveBuffer.Count < MaxBufferSize)
-                            direction = "up";
-                        else if (delta.y < 0 && CanMove("down") && moveBuffer.Count < MaxBufferSize)
-                            direction = "down";
+                        if (delta.y > 0 && CanMove("up"))
+                            StartMove("up");
+                        else if (delta.y < 0 && CanMove("down"))
+                            StartMove("down");
                     }
-                    if (direction != null)
-                        moveBuffer.Enqueue(direction);
                 }
             }
         }
         #endif
-        
-        if (Input.GetKeyDown(KeyCode.W) && CanMove("up") && moveBuffer.Count < MaxBufferSize)
-            moveBuffer.Enqueue("up");
-        else if (Input.GetKeyDown(KeyCode.A) && CanMove("left") && moveBuffer.Count < MaxBufferSize)
-            moveBuffer.Enqueue("left");
-        else if (Input.GetKeyDown(KeyCode.S) && CanMove("down") && moveBuffer.Count < MaxBufferSize)
-            moveBuffer.Enqueue("down");
-        else if (Input.GetKeyDown(KeyCode.D) && CanMove("right") && moveBuffer.Count < MaxBufferSize)
-            moveBuffer.Enqueue("right");
 
-        // Выполняем ход только если Idle и есть ходы в буфере
-        if (currentState == GameState.Idle && moveBuffer.Count > 0)
-        {
-            // Пропускаем невозможные ходы
-            while (moveBuffer.Count > 0)
-            {
-                string dir = moveBuffer.Peek();
-                if (CanMove(dir))
-                {
-                    StartMove(moveBuffer.Dequeue());
-                    break;
-                }
-                else
-                {
-                    moveBuffer.Dequeue(); // Удаляем невозможный ход
-                }
-            }
-        }
+        if (currentState != GameState.Idle)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.W) && CanMove("up"))
+            StartMove("up");
+        else if (Input.GetKeyDown(KeyCode.A) && CanMove("left"))
+            StartMove("left");
+        else if (Input.GetKeyDown(KeyCode.S) && CanMove("down"))
+            StartMove("down");
+        else if (Input.GetKeyDown(KeyCode.D) && CanMove("right"))
+            StartMove("right");
     }
     private bool CanMove(string direction)
     {
@@ -146,7 +123,6 @@ public class GameController : MonoBehaviour
             if (cell2048.fill == null)
                 continue;
 
-            // Получаем нужное поле-соседа по имени направления
             var neighborField = typeof(Cell2048).GetField(direction);
             if (neighborField == null)
                 continue;
@@ -154,7 +130,6 @@ public class GameController : MonoBehaviour
             var neighbor = neighborField.GetValue(cell2048) as Cell2048;
             if (neighbor != null)
             {
-                // Можно сдвинуться, если соседняя ячейка пуста или можно объединить
                 if (neighbor.fill == null || neighbor.fill.value == cell2048.fill.value)
                     return true;
             }
@@ -192,8 +167,6 @@ public class GameController : MonoBehaviour
         else
         {
             currentState = GameState.Idle;
-            if (moveBuffer.Count > 0)
-                StartMove(moveBuffer.Dequeue());
         }
     }
     public void SpawnFill()
@@ -242,9 +215,8 @@ public class GameController : MonoBehaviour
         {
             var cell2048 = cell.GetComponent<Cell2048>();
             if (cell2048.fill == null)
-                return true; // Есть пустая клетка
+                return true;
 
-            // Проверяем соседей на возможность слияния
             if (cell2048.up != null && cell2048.up.fill != null && cell2048.fill.value == cell2048.up.fill.value)
                 return true;
             if (cell2048.down != null && cell2048.down.fill != null && cell2048.fill.value == cell2048.down.fill.value)
@@ -297,7 +269,6 @@ public class GameController : MonoBehaviour
                     tmp.text = "Highscore: " + HighScore;
             }
 
-            // Кнопка Continue
             var continueButton = winScreenInstance.transform.Find("ContinueButton");
             if (continueButton != null)
             {
@@ -321,5 +292,12 @@ public class GameController : MonoBehaviour
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+    }
+    public void ExitGame()
+    {
+        Application.Quit();
+    #if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+    #endif
     }
 }
